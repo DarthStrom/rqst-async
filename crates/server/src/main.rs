@@ -1,4 +1,5 @@
 use miniserve::{http::StatusCode, Content, Request, Response};
+use tokio::join;
 
 async fn index(_req: Request) -> Response {
     let content = include_str!("../index.html").to_string();
@@ -14,9 +15,16 @@ async fn chat(req: Request) -> Response {
     if let Request::Post(body) = req {
         let mut conversation: Conversation =
             serde_json::from_str(&body).unwrap_or(Conversation { messages: vec![] });
-        conversation
-            .messages
-            .push("And how does that make you feel?".to_string());
+
+        let get_rand = chatbot::gen_random_number();
+        let get_responses = chatbot::query_chat(&conversation.messages);
+        let (rand, responses) = join!(get_rand, get_responses);
+
+        let index = rand % responses.len();
+        let random_message = &responses[index];
+
+        conversation.messages.push(random_message.to_string());
+
         Ok(Content::Json(serde_json::to_string(&conversation).unwrap()))
     } else {
         Err(StatusCode::METHOD_NOT_ALLOWED)
