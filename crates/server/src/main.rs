@@ -1,6 +1,6 @@
 use miniserve::{http::StatusCode, Content, Request, Response};
 
-fn index(_req: Request) -> Response {
+async fn index(_req: Request) -> Response {
     let content = include_str!("../index.html").to_string();
     Ok(Content::Html(content))
 }
@@ -10,7 +10,7 @@ struct Conversation {
     messages: Vec<String>,
 }
 
-fn chat(req: Request) -> Response {
+async fn chat(req: Request) -> Response {
     if let Request::Post(body) = req {
         let mut conversation: Conversation =
             serde_json::from_str(&body).unwrap_or(Conversation { messages: vec![] });
@@ -23,9 +23,11 @@ fn chat(req: Request) -> Response {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     miniserve::Server::new()
         .route("/", index)
         .route("/chat", chat)
         .run()
+        .await
 }
