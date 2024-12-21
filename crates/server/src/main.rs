@@ -6,7 +6,7 @@ async fn index(_req: Request) -> Response {
     Ok(Content::Html(content))
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct Conversation {
     messages: Vec<String>,
 }
@@ -16,9 +16,15 @@ async fn chat(req: Request) -> Response {
         let mut conversation: Conversation =
             serde_json::from_str(&body).unwrap_or(Conversation { messages: vec![] });
 
-        let get_rand = chatbot::gen_random_number();
-        let get_responses = chatbot::query_chat(&conversation.messages);
-        let (rand, responses) = join!(get_rand, get_responses);
+        let rand_handle = tokio::spawn(chatbot::gen_random_number());
+
+        let conversation_export = conversation.clone();
+        let responses_handle =
+            tokio::spawn(async move { chatbot::query_chat(&conversation_export.messages).await });
+        let (rand_result, responses_result) = join!(rand_handle, responses_handle);
+
+        let rand = rand_result.unwrap();
+        let responses = responses_result.unwrap();
 
         let index = rand % responses.len();
         let random_message = &responses[index];
